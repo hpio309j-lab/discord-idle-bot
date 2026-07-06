@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discord Idle Bot Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        input[type="text"], input[type="password"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #7289da;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #677bc4;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+        #logs {
+            background-color: #333;
+            color: #eee;
+            padding: 15px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: scroll;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>لوحة تحكم Discord Idle Bot</h1>
+        <div class="form-group">
+            <label for="discordToken">Discord Bot Token:</label>
+            <input type="password" id="discordToken" placeholder="أدخل توكن البوت الخاص بك">
+        </div>
+        <div class="form-group">
+            <label for="voiceChannelId">Voice Channel ID:</label>
+            <input type="text" id="voiceChannelId" placeholder="أدخل معرف الغرفة الصوتية">
+        </div>
+        <button id="startButton">تشغيل البوت</button>
+        <button id="stopButton" disabled>إيقاف البوت</button>
+        <p id="status"></p>
+    </div>
+
+    <div class="container">
+        <h2>السجلات</h2>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        const discordTokenInput = document.getElementById("discordToken");
+        const voiceChannelIdInput = document.getElementById("voiceChannelId");
+        const startButton = document.getElementById("startButton");
+        const stopButton = document.getElementById("stopButton");
+        const statusParagraph = document.getElementById("status");
+        const logsDiv = document.getElementById("logs");
+
+        let ws;
+
+        function connectWebSocket() {
+            ws = new WebSocket(`ws://${window.location.host}`);
+
+            ws.onopen = () => {
+                console.log("Connected to WebSocket");
+            };
+
+            ws.onmessage = event => {
+                const data = JSON.parse(event.data);
+                switch (data.type) {
+                    case "init":
+                        data.logs.forEach(log => appendLog(log));
+                        updateBotStatus(data.botRunning);
+                        if (data.discordToken) {
+                            discordTokenInput.value = data.discordToken;
+                        }
+                        if (data.voiceChannelId) {
+                            voiceChannelIdInput.value = data.voiceChannelId;
+                        }
+                        break;
+                    case "log":
+                        appendLog(data.message);
+                        break;
+                    case "status":
+                        updateBotStatus(data.botRunning);
+                        break;
+                }
+            };
+
+            ws.onclose = () => {
+                console.log("Disconnected from WebSocket. Reconnecting in 5 seconds...");
+                setTimeout(connectWebSocket, 5000);
+            };
+
+            ws.onerror = error => {
+                console.error("WebSocket Error:", error);
+                statusParagraph.textContent = "خطأ في الاتصال بالخادم.";
+            };
+        }
+
+        function appendLog(message) {
+            const logEntry = document.createElement("div");
+            logEntry.classList.add("log-entry");
+            logEntry.textContent = message;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function updateBotStatus(running) {
+            if (running) {
+                statusParagraph.textContent = "حالة البوت: يعمل";
+                statusParagraph.style.color = "green";
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                discordTokenInput.disabled = true;
+                voiceChannelIdInput.disabled = true;
+            } else {
+                statusParagraph.textContent = "حالة البوت: متوقف";
+                statusParagraph.style.color = "red";
+                startButton.disabled = false;
+                stopButton.disabled = true;
+                discordTokenInput.disabled = false;
+                voiceChannelIdInput.disabled = false;
+            }
+        }
+
+        startButton.addEventListener("click", () => {
+            const discordToken = discordTokenInput.value;
+            const voiceChannelId = voiceChannelIdInput.value;
+
+            if (!discordToken || !voiceChannelId) {
+                alert("الرجاء إدخال توكن البوت ومعرف الغرفة الصوتية.");
+                return;
+            }
+
+            ws.send(JSON.stringify({ type: "start", discordToken, voiceChannelId }));
+            updateBotStatus(true);
+        });
+
+        stopButton.addEventListener("click", () => {
+            ws.send(JSON.stringify({ type: "stop" }));
+            updateBotStatus(false);
+        });
+
+        // Initial connection
+        connectWebSocket();
+    </script>
+</body>
+</html>
