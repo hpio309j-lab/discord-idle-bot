@@ -1,14 +1,14 @@
 {
-  "name": "discord-idle-bot",
+  "name": "discord-idle-selfbot",
   "version": "1.0.0",
-  "description": "A Node.js bot to keep a Discord account in an idle voice channel.",
+  "description": "A Node.js self-bot to keep a Discord user account in an idle voice channel.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "keywords": [
     "discord",
-    "bot",
+    "selfbot",
     "idle",
     "voice",
     "railway"
@@ -16,7 +16,7 @@
   "author": "Manus AI",
   "license": "MIT",
   "dependencies": {
-    "discord.js": "^14.0.0",
+    "discord.js-selfbot-v13": "^2.15.0",
     "express": "^4.18.2",
     "ws": "^8.18.0"
   }
